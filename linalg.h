@@ -1,14 +1,15 @@
 #pragma once
-#include <algorithm>
+
+#include <math.h>
 #include <cassert>
-#include <iostream>
 #include <initializer_list>
-#include <cstdlib>
+#include <cstdio>
 #include <vector>
+#include <chrono>
 
 
 template<class Type_ = double>
-struct mat{
+struct mat {
     mat() {
         m_data = nullptr;
     };
@@ -62,20 +63,11 @@ struct mat{
         return *this;
     }
 
-    mat<Type_> operator*(mat<Type_> const& other) const {
-        int n_rows = other.rows();
-        int n_cols = other.cols();
-        assert(m_cols == n_rows);
-        
-        mat<Type_> out;
-        out.reshape(m_rows, n_cols);
-
-        for(int r = 0; r < m_rows; ++r)
-            for(int c = 0; c < n_cols; ++c)
-                for (int r1 = 0; r1 < m_cols; ++r1)
-                    out.data()[r * n_cols + c] += m_data[r * m_cols + r1] * other.data()[r1 * n_cols + c];
-
-        return out;
+    bool operator==(mat<Type_> const& other) const {
+        if(other.cols() != m_cols || other.rows() != m_rows) return false;
+        for(int i = 0; i < m_cols * m_rows; ++i)
+            if(m_data[i] != other.data()[i]) return false;
+        return true;
     }
 
     mat<Type_> operator/(mat<Type_> const& other) const {
@@ -205,6 +197,57 @@ public:
     Type_* m_data = nullptr;
 };
 
+
+template<class Type_>
+void _matmul_1(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out){     
+    int m_rows = a.rows();
+    int m_cols = a.cols();
+    int n_rows = b.rows();
+    int n_cols = b.cols();
+    assert(m_cols == n_rows);
+    
+    for(int r = 0; r < m_rows; ++r)
+        for(int c = 0; c < n_cols; ++c)
+            for (int r1 = 0; r1 < m_cols; ++r1)
+                out.data()[r * n_cols + c] += a.data()[r * m_cols + r1] * b.data()[r1 * n_cols + c];
+
+}
+
+
+template<class Type_>
+void _matmul_2(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out){     
+    int m_rows = a.rows();
+    int m_cols = a.cols();
+    int n_rows = b.rows();
+    int n_cols = b.cols();
+    assert(m_cols == n_rows);
+    
+    for (int r1 = 0; r1 < m_cols; ++r1){
+        for(int r = 0; r < m_rows; ++r){
+            auto tmp = a.data()[r*m_cols + r1];
+            for(int c = 0; c < n_cols; ++c)
+                out.data()[r * n_cols + c] += tmp * b.data()[r1 * n_cols + c];
+        }
+    }
+}
+
+
+template<class Type_>
+mat<Type_> operator*(mat<Type_> const& a, mat<Type_> const& b) {
+    int m_rows = a.rows();
+    int m_cols = a.cols();
+    int n_rows = b.rows();
+    int n_cols = b.cols();
+    
+    mat<Type_> out;
+    out.reshape(m_rows, n_cols);
+    
+    _matmul_2(a, b, out);
+
+    return out;
+}
+
+
 template<class Type_>
 mat<Type_> operator*(double cnst, mat<Type_> const& other){     
     int n_rows = other.rows();
@@ -232,6 +275,12 @@ mat<Type_> operator/(mat<Type_> const& other, double cnst) {
     return out;
 }
 
+template<class Type_>
+mat<Type_>&& operator/(mat<Type_>&& other, double cnst) {
+    for (int c = 0; c < other.m_rows * other.m_cols; ++c)
+        other.m_data[c] = other.m_data[c] / cnst;
+    return std::move(other);
+}
 
 template<class Type_>
 mat<Type_>&& add_matrices(mat<Type_> && a, mat<Type_ > const& b) {
@@ -240,7 +289,6 @@ mat<Type_>&& add_matrices(mat<Type_> && a, mat<Type_ > const& b) {
         a.m_data[c] = a.m_data[c] + b.m_data[c];
     return std::move(a);
 }
-
 
 template<class Type_>
 mat<Type_> add_matrices_copy(mat<Type_> const& a, mat<Type_> const& b) {
@@ -298,6 +346,7 @@ template<class Type_>
 mat<Type_>&& operator-(mat<Type_>&& other, double cnst) {
     return std::move(std::move(other) + (-cnst));
 }
+
 
 template<class Type_>
 mat<Type_> maximum(mat<Type_> const& a, mat<Type_> const& b){
@@ -462,7 +511,6 @@ vec<Type_> mean(std::vector<vec<Type_>> const& data) {
         out = out + data[i];
     return out / (double)data.size();
 }
-
 
 template<class Type_>
 vec<Type_> stdev(std::vector<vec<Type_>> const& data) {
