@@ -17,11 +17,11 @@ struct mat {
         reshape(n_rows, n_cols);
     }
     mat(std::initializer_list<std::initializer_list<Type_>> lst)
-    : m_rows(lst.size()), m_cols(lst.begin()->size())
+        : m_rows(lst.size()), m_cols(lst.begin()->size())
     {
         reshape(m_rows, m_cols);
         Type_* ptr = m_data;
-        for(auto row = lst.begin(); row != lst.end(); ++row, ptr += m_cols){
+        for (auto row = lst.begin(); row != lst.end(); ++row, ptr += m_cols) {
             assert((*row).size() == m_cols);
             std::copy(row->begin(), row->end(), ptr);
         }
@@ -64,9 +64,9 @@ struct mat {
     }
 
     bool operator==(mat<Type_> const& other) const {
-        if(other.cols() != m_cols || other.rows() != m_rows) return false;
-        for(int i = 0; i < m_cols * m_rows; ++i)
-            if(m_data[i] != other.data()[i]) return false;
+        if (other.cols() != m_cols || other.rows() != m_rows) return false;
+        for (int i = 0; i < m_cols * m_rows; ++i)
+            if (m_data[i] != other.data()[i]) return false;
         return true;
     }
 
@@ -84,30 +84,16 @@ struct mat {
         return out;
     }
 
-    mat<Type_> operator-(mat<Type_> const& other){
-        int n_rows = other.rows();
-        int n_cols = other.cols();
-        assert(m_cols == n_cols && m_rows == n_rows);
-        
-        mat<Type_> out;
-        out.reshape(m_rows, m_cols);
-
-        for(int r = 0; r < m_rows; ++r)
-            for(int c = 0; c < m_cols; ++c)
-                out.data()[r * m_cols + c] = m_data[r * m_cols + c] - other.data()[r * m_cols + c];
-
-        return out;
-    }
-
-    void transpose(){
-        if(m_rows == m_cols){
-            for(int r = 0; r < m_rows; ++r)
-                for(int c = r + 1; c < m_cols; ++c)
+    void transpose() {
+        if (m_rows == m_cols) {
+            for (int r = 0; r < m_rows; ++r)
+                for (int c = r + 1; c < m_cols; ++c)
                     std::swap(m_data[r * m_cols + c], m_data[c * m_cols + r]);
-        } else{
+        }
+        else {
             Type_* n_data = new Type_[m_rows * m_cols]();
-            for(int c = 0; c < m_cols; ++c)
-                for(int r = 0; r < m_rows; ++r)
+            for (int c = 0; c < m_cols; ++c)
+                for (int r = 0; r < m_rows; ++r)
                     n_data[c * m_rows + r] = m_data[r * m_cols + c];
             delete[] m_data;
             m_data = nullptr;
@@ -122,7 +108,7 @@ struct mat {
         return n_mat;
     }
 
-    void reshape(int n_rows, int n_cols){
+    void reshape(int n_rows, int n_cols) {
         if (m_data) {
             if (m_rows * m_cols != n_rows * n_cols) {
                 delete[] m_data;
@@ -136,20 +122,20 @@ struct mat {
         m_cols = n_cols;
     }
 
-    void fill(Type_ def = Type_()){
-        for(int i = 0; i < m_rows * m_cols; ++i)
+    void fill(Type_ def = Type_()) {
+        for (int i = 0; i < m_rows * m_cols; ++i)
             m_data[i] = def;
     }
 
-    static mat<Type_> filled(int rows, int cols, Type_ def = Type_()){
+    static mat<Type_> filled(int rows, int cols, Type_ def = Type_()) {
         mat<Type_> out;
         out.reshape(rows, cols);
         out.fill(def);
         return out;
     }
 
-    void map(void (*func)(Type_& obj)){
-        for(int i = 0; i < m_rows * m_cols; ++i){
+    void map(void (*func)(Type_& obj)) {
+        for (int i = 0; i < m_rows * m_cols; ++i) {
             func(m_data[i]);
         }
     }
@@ -160,14 +146,14 @@ struct mat {
         return out;
     }
 
-    void randomize(){
-        for(int i = 0; i < m_rows * m_cols; ++i)
+    void randomize() {
+        for (int i = 0; i < m_rows * m_cols; ++i)
             m_data[i] = 1.0 - 2.0 * (std::rand() % 1000) / 1000.0;
     }
 
     void print() const {
-        for(int r = 0; r < m_rows; ++r){
-            for(int c = 0; c < m_cols; ++c)
+        for (int r = 0; r < m_rows; ++r) {
+            for (int c = 0; c < m_cols; ++c)
                 printf("%lf ", m_data[r * m_cols + c]);
             printf("\n");
         }
@@ -186,51 +172,48 @@ struct mat {
         return out;
     }
 
-    Type_*  data() const { return m_data; }  
-    int     cols() const { return m_cols;   }
-    int     rows() const { return m_rows;   }
+    Type_* data() const { return m_data; }
+    int     cols() const { return m_cols; }
+    int     rows() const { return m_rows; }
 
 public:
     int m_rows = 1;
     int m_cols = 1;
-    
+
     Type_* m_data = nullptr;
 };
 
-
 template<class Type_>
-void _matmul_1(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out){     
+void _matmul_1(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out) {
     int m_rows = a.rows();
     int m_cols = a.cols();
     int n_rows = b.rows();
     int n_cols = b.cols();
     assert(m_cols == n_rows);
-    
-    for(int r = 0; r < m_rows; ++r)
-        for(int c = 0; c < n_cols; ++c)
+
+    for (int r = 0; r < m_rows; ++r)
+        for (int c = 0; c < n_cols; ++c)
             for (int r1 = 0; r1 < m_cols; ++r1)
                 out.data()[r * n_cols + c] += a.data()[r * m_cols + r1] * b.data()[r1 * n_cols + c];
 
 }
 
-
 template<class Type_>
-void _matmul_2(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out){     
+void _matmul_2(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out) {
     int m_rows = a.rows();
     int m_cols = a.cols();
     int n_rows = b.rows();
     int n_cols = b.cols();
     assert(m_cols == n_rows);
-    
-    for (int r1 = 0; r1 < m_cols; ++r1){
-        for(int r = 0; r < m_rows; ++r){
-            auto tmp = a.data()[r*m_cols + r1];
-            for(int c = 0; c < n_cols; ++c)
+
+    for (int r1 = 0; r1 < m_cols; ++r1) {
+        for (int r = 0; r < m_rows; ++r) {
+            auto tmp = a.data()[r * m_cols + r1];
+            for (int c = 0; c < n_cols; ++c)
                 out.data()[r * n_cols + c] += tmp * b.data()[r1 * n_cols + c];
         }
     }
 }
-
 
 template<class Type_>
 mat<Type_> operator*(mat<Type_> const& a, mat<Type_> const& b) {
@@ -238,32 +221,48 @@ mat<Type_> operator*(mat<Type_> const& a, mat<Type_> const& b) {
     int m_cols = a.cols();
     int n_rows = b.rows();
     int n_cols = b.cols();
-    
+
     mat<Type_> out;
     out.reshape(m_rows, n_cols);
-    
+
     _matmul_2(a, b, out);
 
     return out;
 }
 
-
 template<class Type_>
-mat<Type_> operator*(double cnst, mat<Type_> const& other){     
+mat<Type_> operator*(double cnst, mat<Type_> const& other) {
     int n_rows = other.rows();
-    int n_cols = other.cols();   
+    int n_cols = other.cols();
 
     mat<Type_> out;
     out.reshape(n_rows, n_cols);
-    for(int r = 0; r < n_rows; ++r)
-        for(int c = 0; c < n_cols; ++c)
-            out.data()[r * n_cols + c] = other.data()[r * n_cols + c] * cnst;
+
+    for (int r = 0; r < n_rows * n_cols; ++r)
+        out.data()[r] = other.data()[r] * cnst;
+
     return out;
 }
 
 template<class Type_>
-mat<Type_> operator*(mat<Type_> const& other, double cnst){     
+mat<Type_>&& operator*(double cnst, mat<Type_>&& other) {
+    int n_rows = other.rows();
+    int n_cols = other.cols();
+
+    for (int r = 0; r < n_rows * n_cols; ++r)
+        other.m_data[r] *= cnst;
+
+    return std::move(other);
+}
+
+template<class Type_>
+mat<Type_> operator*(mat<Type_> const& other, double cnst) {
     return cnst * other;
+}
+
+template<class Type_>
+mat<Type_>&& operator*(mat<Type_>&& other, double cnst) {
+    return std::move(cnst * std::move(other));
 }
 
 template<class Type_>
@@ -283,23 +282,25 @@ mat<Type_>&& operator/(mat<Type_>&& other, double cnst) {
 }
 
 template<class Type_>
-mat<Type_>&& add_matrices(mat<Type_> && a, mat<Type_ > const& b) {
+mat<Type_>&& add_matrices(mat<Type_>&& a, mat<Type_ > const& b, double k1 = 1, double k2 = 1) {
     assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
     for (int c = 0; c < a.m_rows * a.m_cols; ++c)
-        a.m_data[c] = a.m_data[c] + b.m_data[c];
+        a.m_data[c] = k1 * a.m_data[c] + k2 * b.m_data[c];
     return std::move(a);
 }
 
 template<class Type_>
-mat<Type_> add_matrices_copy(mat<Type_> const& a, mat<Type_> const& b) {
+mat<Type_> add_matrices_copy(mat<Type_> const& a, mat<Type_> const& b, double k1 = 1, double k2 = 1) {
     assert(a.cols() == b.cols() && a.rows() == b.rows());
     mat<Type_> out;
     out.reshape(a.rows(), a.cols());
 
     for (int c = 0; c < a.rows() * a.cols(); ++c)
-        out.data()[c] = a.data()[c] + b.data()[c];
+        out.data()[c] = k1 * a.data()[c] + k2 * b.data()[c];
     return out;
 }
+
+/////////////////////////////////////////////////////////////
 
 template<class Type_>
 mat<Type_> operator+(mat<Type_> const& a, mat<Type_> const& b) {
@@ -320,6 +321,30 @@ template<class Type_>
 mat<Type_>&& operator+(mat<Type_> const& a, mat<Type_>&& b) {
     return std::move(add_matrices<Type_>(std::move(b), a));
 }
+
+/////////////////////////////////////////////////////////////
+
+template<class Type_>
+mat<Type_> operator-(mat<Type_> const& a, mat<Type_> const& b) {
+    return add_matrices_copy(a, b, 1, -1);
+}
+
+template<class Type_>
+mat<Type_>&& operator-(mat<Type_>&& a, mat<Type_>&& b) {
+    return std::move(add_matrices<Type_>(std::move(a), std::move(b), 1, -1));
+}
+
+template<class Type_>
+mat<Type_>&& operator-(mat<Type_>&& a, mat<Type_> const& b) {
+    return std::move(add_matrices<Type_>(std::move(a), b, 1, -1));
+}
+
+template<class Type_>
+mat<Type_>&& operator-(mat<Type_> const& a, mat<Type_>&& b) {
+    return std::move(add_matrices<Type_>(std::move(b), a, -1, 1));
+}
+
+/////////////////////////////////////////////////////////////
 
 template<class Type_>
 mat<Type_> operator+(mat<Type_> const& other, double cnst) {
@@ -347,17 +372,16 @@ mat<Type_>&& operator-(mat<Type_>&& other, double cnst) {
     return std::move(std::move(other) + (-cnst));
 }
 
-
 template<class Type_>
-mat<Type_> maximum(mat<Type_> const& a, mat<Type_> const& b){
+mat<Type_> maximum(mat<Type_> const& a, mat<Type_> const& b) {
     assert(a.rows() == b.rows() && a.cols() == b.cols());
     mat<Type_> out;
     out.reshape(a.rows(), a.cols());
 
-    for(int r = 0; r < a.rows(); ++r)
-        for(int c = 0; c < a.cols(); ++c)
+    for (int r = 0; r < a.rows(); ++r)
+        for (int c = 0; c < a.cols(); ++c)
             out.data()[r * a.cols() + c] = std::max(a.data()[r * a.cols() + c], b.data()[r * a.cols() + c]);
-    
+
     return out;
 }
 
@@ -366,15 +390,15 @@ template<class Type_ = double>
 struct vec : mat<Type_> {
     vec() : mat<Type_>() {}
     vec(int n_cols) : mat<Type_>(1, n_cols) {}
-    vec(std::initializer_list<Type_> lst) : mat<Type_>({lst}) {}
+    vec(std::initializer_list<Type_> lst) : mat<Type_>({ lst }) {}
 
     Type_ dot(vec<Type_> const& other) const {
         assert(this->m_cols == other.cols());
-        
+
         Type_ out = Type_();
-        for(int i=0; i<this->m_cols; ++i)
+        for (int i = 0; i < this->m_cols; ++i)
             out += other.data()[i] * this->m_data[i];
-        return out; 
+        return out;
     }
 
     static vec<Type_> filled(int cols, Type_ def = Type_()) {
@@ -390,8 +414,8 @@ struct vec : mat<Type_> {
         vec<Type_> out;
         out.reshape(this->m_cols);
 
-        for(int i = 0; i < this->m_cols; ++i)
-            out.data()[i] = this->m_data[i] * other.data()[i];    
+        for (int i = 0; i < this->m_cols; ++i)
+            out.data()[i] = this->m_data[i] * other.data()[i];
 
         return out;
     }
@@ -413,14 +437,11 @@ struct vec : mat<Type_> {
         int n_rows = other.rows();
         int n_cols = other.cols();
         assert(this->m_cols == n_rows);
-        
+
         vec<Type_> out;
         out.reshape(n_cols);
 
-        for(int r = 0; r < this->m_rows; ++r)
-            for(int c = 0; c < n_cols; ++c)
-                for (int r1 = 0; r1 < this->m_cols; ++r1) 
-                    out.data()[r * n_cols + c] += this->m_data[r * this->m_cols + r1] * other.data()[r1 * n_cols + c];
+        _matmul_2(*this, other, out);
 
         return out;
     }
@@ -428,11 +449,11 @@ struct vec : mat<Type_> {
     vec<Type_> operator+(vec<Type_> const& other) const {
         int n_cols = other.cols();
         assert(this->m_cols == n_cols);
-        
+
         vec<Type_> out;
         out.reshape(this->m_cols);
 
-        for(int c = 0; c < this->m_cols; ++c)
+        for (int c = 0; c < this->m_cols; ++c)
             out.data()[c] = this->m_data[c] + other.data()[c];
 
         return out;
@@ -441,11 +462,11 @@ struct vec : mat<Type_> {
     vec<Type_> operator-(vec<Type_> const& other) const {
         int n_cols = other.cols();
         assert(this->m_cols == n_cols);
-        
+
         vec<Type_> out;
         out.reshape(this->m_cols);
 
-        for(int c = 0; c < this->m_cols; ++c)
+        for (int c = 0; c < this->m_cols; ++c)
             out.data()[c] = this->m_data[c] - other.data()[c];
 
         return out;
@@ -492,14 +513,14 @@ struct vec : mat<Type_> {
 };
 
 template<class Type_>
-vec<Type_> maximum(vec<Type_> const& a, vec<Type_> const& b){
+vec<Type_> maximum(vec<Type_> const& a, vec<Type_> const& b) {
     assert(a.cols() == b.cols());
     vec<Type_> out;
     out.reshape(a.cols());
 
-    for(int c = 0; c < a.cols(); ++c)
+    for (int c = 0; c < a.cols(); ++c)
         out.data()[c] = std::max(a.data()[c], b.data()[c]);
-    
+
     return out;
 }
 
@@ -526,18 +547,18 @@ vec<Type_> stdev(std::vector<vec<Type_>> const& data) {
 }
 
 template<class Type_>
-vec<Type_> operator*(double cnst, vec<Type_> const& other){     
-    int n_cols = other.cols();   
+vec<Type_> operator*(double cnst, vec<Type_> const& other) {
+    int n_cols = other.cols();
 
     vec<Type_> out;
     out.reshape(n_cols);
-    for(int c = 0; c < n_cols; ++c)
+    for (int c = 0; c < n_cols; ++c)
         out.data()[c] = other.data()[c] * cnst;
     return out;
 }
 
 template<class Type_>
-vec<Type_> operator*(vec<Type_> const& other, double cnst){     
+vec<Type_> operator*(vec<Type_> const& other, double cnst) {
     return cnst * other;
 }
 
