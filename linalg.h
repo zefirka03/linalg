@@ -446,32 +446,6 @@ struct vec : mat<Type_> {
         return out;
     }
 
-    vec<Type_> operator+(vec<Type_> const& other) const {
-        int n_cols = other.cols();
-        assert(this->m_cols == n_cols);
-
-        vec<Type_> out;
-        out.reshape(this->m_cols);
-
-        for (int c = 0; c < this->m_cols; ++c)
-            out.data()[c] = this->m_data[c] + other.data()[c];
-
-        return out;
-    }
-
-    vec<Type_> operator-(vec<Type_> const& other) const {
-        int n_cols = other.cols();
-        assert(this->m_cols == n_cols);
-
-        vec<Type_> out;
-        out.reshape(this->m_cols);
-
-        for (int c = 0; c < this->m_cols; ++c)
-            out.data()[c] = this->m_data[c] - other.data()[c];
-
-        return out;
-    }
-
     vec<Type_> mapped(void (*func)(Type_& obj)) const {
         vec<Type_> out = *this;
         out.map(func);
@@ -511,6 +485,72 @@ struct vec : mat<Type_> {
         (static_cast<mat<Type_>*>(this))->reshape(1, n_cols);
     }
 };
+
+
+template<class Type_>
+vec<Type_>&& add_vectors(vec<Type_>&& a, vec<Type_ > const& b, double k1 = 1, double k2 = 1) {
+    assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
+    for (int c = 0; c < a.m_cols; ++c)
+        a.m_data[c] = k1 * a.m_data[c] + k2 * b.m_data[c];
+    return std::move(a);
+}
+
+template<class Type_>
+vec<Type_> add_vectors_copy(vec<Type_> const& a, vec<Type_> const& b, double k1 = 1, double k2 = 1) {
+    assert(a.cols() == b.cols() && a.rows() == b.rows());
+    vec<Type_> out;
+    out.reshape(a.cols());
+
+    for (int c = 0; c < a.cols(); ++c)
+        out.data()[c] = k1 * a.data()[c] + k2 * b.data()[c];
+    return out;
+}
+
+/////////////////////////////////////////////////////////////
+
+template<class Type_>
+vec<Type_> operator+(vec<Type_> const& a, vec<Type_> const& b) {
+    return add_vectors_copy(a, b);
+}
+
+template<class Type_>
+vec<Type_>&& operator+(vec<Type_>&& a, vec<Type_>&& b) {
+    return std::move(add_vectors<Type_>(std::move(a), std::move(b)));
+}
+
+template<class Type_>
+vec<Type_>&& operator+(vec<Type_>&& a, vec<Type_> const& b) {
+    return std::move(add_vectors<Type_>(std::move(a), b));
+}
+
+template<class Type_>
+vec<Type_>&& operator+(vec<Type_> const& a, vec<Type_>&& b) {
+    return std::move(add_vectors<Type_>(std::move(b), a));
+}
+
+/////////////////////////////////////////////////////////////
+
+template<class Type_>
+vec<Type_> operator-(vec<Type_> const& a, vec<Type_> const& b) {
+    return add_vectors_copy(a, b, 1, -1);
+}
+
+template<class Type_>
+vec<Type_>&& operator-(vec<Type_>&& a, vec<Type_>&& b) {
+    return std::move(add_vectors<Type_>(std::move(a), std::move(b), 1, -1));
+}
+
+template<class Type_>
+vec<Type_>&& operator-(vec<Type_>&& a, vec<Type_> const& b) {
+    return std::move(add_vectors<Type_>(std::move(a), b, 1, -1));
+}
+
+template<class Type_>
+vec<Type_>&& operator-(vec<Type_> const& a, vec<Type_>&& b) {
+    return std::move(add_vectors<Type_>(std::move(b), a, -1, 1));
+}
+
+/////////////////////////////////////////////////////////////
 
 template<class Type_>
 vec<Type_> maximum(vec<Type_> const& a, vec<Type_> const& b) {
