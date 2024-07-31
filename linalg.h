@@ -606,6 +606,31 @@ vec<Type_>&& add_vectors(vec<Type_>&& a, vec<Type_ > const& b, double k1 = 1, do
     return std::move(a);
 }
 
+template<>
+vec<double>&& add_vectors(vec<double>&& a, vec<double> const& b, double k1, double k2) {
+    assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
+
+    int sz = a.cols();
+    const int alignedN = sz - sz % 4;
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&a.data()[i]);
+        const __m256d b_vec = _mm256_loadu_pd(&b.data()[i]);
+
+        const __m256d k1_vec = _mm256_set1_pd(k1);
+        const __m256d k2_vec = _mm256_set1_pd(k2);
+
+        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec);
+        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec);
+        const __m256d result = _mm256_add_pd(k1_a, k2_b);
+
+        _mm256_storeu_pd(&a.data()[i], result);
+    }
+    for (int i = alignedN; i < sz; ++i)
+        a.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
+    return std::move(a);
+}
+
 template<class Type_>
 vec<Type_> add_vectors_copy(vec<Type_> const& a, vec<Type_> const& b, double k1 = 1, double k2 = 1) {
     assert(a.cols() == b.cols() && a.rows() == b.rows());
@@ -616,6 +641,34 @@ vec<Type_> add_vectors_copy(vec<Type_> const& a, vec<Type_> const& b, double k1 
         out.data()[c] = k1 * a.data()[c] + k2 * b.data()[c];
     return out;
 }
+
+template<>
+vec<double> add_vectors_copy(vec<double> const& a, vec<double> const& b, double k1, double k2) {
+    assert(a.cols() == b.cols() && a.rows() == b.rows());
+    vec<double> out;
+    out.reshape(a.cols());
+
+    int sz = a.cols();
+    const int alignedN = sz - sz % 4;
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&a.data()[i]);
+        const __m256d b_vec = _mm256_loadu_pd(&b.data()[i]);
+
+        const __m256d k1_vec = _mm256_set1_pd(k1);
+        const __m256d k2_vec = _mm256_set1_pd(k2);
+
+        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec);
+        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec);
+        const __m256d result = _mm256_add_pd(k1_a, k2_b);
+
+        _mm256_storeu_pd(&out.data()[i], result);
+    }
+    for (int i = alignedN; i < sz; ++i)
+        out.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
+    return out;
+}
+
 
 /////////////////////////////////////////////////////////////
 
