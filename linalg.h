@@ -34,7 +34,7 @@ struct mat {
         }
     }
     mat(mat<Type_>&& other) noexcept {
-        if (m_data) delete[] m_data;
+        if (m_data) _aligned_free(m_data);
 
         m_cols = other.m_cols;
         m_rows = other.m_rows;
@@ -42,7 +42,7 @@ struct mat {
 
         other.m_data = nullptr;
     }
-    ~mat() { if (m_data) delete[] m_data; }
+    ~mat() { if (m_data) _aligned_free(m_data); }
 
     mat<Type_>& operator=(mat<Type_> const& other) {
         if (&other != this) {
@@ -53,7 +53,7 @@ struct mat {
     }
 
     mat<Type_>& operator=(mat<Type_>&& other) noexcept {
-        if (m_data) delete[] m_data;
+        if (m_data) _aligned_free(m_data);
 
         m_cols = other.m_cols;
         m_rows = other.m_rows;
@@ -92,12 +92,11 @@ struct mat {
                     std::swap(m_data[r * m_cols + c], m_data[c * m_cols + r]);
         }
         else {
-            Type_* n_data = new Type_[m_rows * m_cols]();
+            Type_* n_data = static_cast<Type_*>(_aligned_malloc(m_rows * m_cols * sizeof(Type_), 32));
             for (int c = 0; c < m_cols; ++c)
                 for (int r = 0; r < m_rows; ++r)
                     n_data[c * m_rows + r] = m_data[r * m_cols + c];
-            delete[] m_data;
-            m_data = nullptr;
+            _aligned_free(m_data);
             m_data = n_data;
             std::swap(m_cols, m_rows);
         }
@@ -112,12 +111,12 @@ struct mat {
     void reshape(int n_rows, int n_cols) {
         if (m_data) {
             if (m_rows * m_cols != n_rows * n_cols) {
-                delete[] m_data;
-                m_data = new Type_[n_rows * n_cols]();
+                _aligned_free(m_data);
+                m_data = static_cast<Type_*>(_aligned_malloc(n_rows * n_cols * sizeof(Type_), 32));
             }
         }
         else {
-            m_data = new Type_[n_rows * n_cols]();
+            m_data = static_cast<Type_*>(_aligned_malloc(n_rows * n_cols * sizeof(Type_), 32));
         }
         m_rows = n_rows;
         m_cols = n_cols;
@@ -240,7 +239,7 @@ mat<Type_> operator*(double cnst, mat<Type_> const& other) {
     out.reshape(n_rows, n_cols);
 
     int sz = n_rows * n_cols;
-    for (int i = 0; i < sz; ++i) 
+    for (int i = 0; i < sz; ++i)
         out.data()[i] = other.data()[i] * cnst;
 
     return out;
@@ -256,7 +255,7 @@ mat<double> operator*(double cnst, mat<double> const& other) {
 
     int sz = n_rows * n_cols;
     const int alignedN = sz - sz % 4;
-    
+
     const __m256d k = _mm256_set1_pd(cnst);
     for (int i = 0; i < alignedN; i += 4) {
         const __m256d a_vec = _mm256_loadu_pd(&other.data()[i]);
@@ -345,7 +344,7 @@ mat<Type_>&& add_matrices(mat<Type_>&& a, mat<Type_> const& b, double k1 = 1, do
 template<>
 mat<double>&& add_matrices(mat<double>&& a, mat<double> const& b, double k1, double k2) {
     assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
-    
+
     int sz = a.rows() * a.cols();
     const int alignedN = sz - sz % 4;
     for (int i = 0; i < alignedN; i += 4) {
@@ -355,13 +354,13 @@ mat<double>&& add_matrices(mat<double>&& a, mat<double> const& b, double k1, dou
         const __m256d k1_vec = _mm256_set1_pd(k1);
         const __m256d k2_vec = _mm256_set1_pd(k2);
 
-        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec); 
-        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec); 
-        const __m256d result = _mm256_add_pd(k1_a, k2_b);  
+        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec);
+        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec);
+        const __m256d result = _mm256_add_pd(k1_a, k2_b);
 
         _mm256_storeu_pd(&a.data()[i], result);
     }
-    for (int i = alignedN; i < sz; ++i) 
+    for (int i = alignedN; i < sz; ++i)
         a.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
 
     return std::move(a);
