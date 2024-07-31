@@ -7,6 +7,7 @@
 #include <vector>
 #include <chrono>
 
+#include <immintrin.h>
 
 template<class Type_ = double>
 struct mat {
@@ -238,7 +239,32 @@ mat<Type_> operator*(double cnst, mat<Type_> const& other) {
     mat<Type_> out;
     out.reshape(n_rows, n_cols);
 
-    for (int r = 0; r < n_rows * n_cols; ++r)
+    int sz = n_rows * n_cols;
+    for (int i = 0; i < sz; ++i) 
+        out.data()[i] = other.data()[i] * cnst;
+
+    return out;
+}
+
+template<>
+mat<double> operator*(double cnst, mat<double> const& other) {
+    int n_rows = other.rows();
+    int n_cols = other.cols();
+
+    mat<double> out;
+    out.reshape(n_rows, n_cols);
+
+    int sz = n_rows * n_cols;
+    const int alignedN = sz - sz % 4;
+    
+    const __m256d k = _mm256_set1_pd(cnst);
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&other.data()[i]);
+        const __m256d result = _mm256_mul_pd(k, a_vec);
+
+        _mm256_storeu_pd(&out.data()[i], result);
+    }
+    for (int r = alignedN; r < sz; ++r)
         out.data()[r] = other.data()[r] * cnst;
 
     return out;
@@ -249,8 +275,30 @@ mat<Type_>&& operator*(double cnst, mat<Type_>&& other) {
     int n_rows = other.rows();
     int n_cols = other.cols();
 
-    for (int r = 0; r < n_rows * n_cols; ++r)
+    int sz = n_rows * n_cols;
+    for (int r = 0; r < sz; ++r)
         other.m_data[r] *= cnst;
+
+    return std::move(other);
+}
+
+template<>
+mat<double>&& operator*(double cnst, mat<double>&& other) {
+    int n_rows = other.rows();
+    int n_cols = other.cols();
+
+    int sz = n_rows * n_cols;
+    const int alignedN = sz - sz % 4;
+
+    const __m256d k = _mm256_set1_pd(cnst);
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&other.data()[i]);
+        const __m256d result = _mm256_mul_pd(k, a_vec);
+
+        _mm256_storeu_pd(&other.data()[i], result);
+    }
+    for (int r = alignedN; r < sz; ++r)
+        other.data()[r] = other.data()[r] * cnst;
 
     return std::move(other);
 }
@@ -281,13 +329,44 @@ mat<Type_>&& operator/(mat<Type_>&& other, double cnst) {
     return std::move(other);
 }
 
+
 template<class Type_>
-mat<Type_>&& add_matrices(mat<Type_>&& a, mat<Type_ > const& b, double k1 = 1, double k2 = 1) {
+mat<Type_>&& add_matrices(mat<Type_>&& a, mat<Type_> const& b, double k1 = 1, double k2 = 1) {
     assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
-    for (int c = 0; c < a.m_rows * a.m_cols; ++c)
-        a.m_data[c] = k1 * a.m_data[c] + k2 * b.m_data[c];
+
+    int sz = a.rows() * a.cols();
+    for (int i = 0; i < sz; ++i)
+        a.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
     return std::move(a);
 }
+
+
+template<>
+mat<double>&& add_matrices(mat<double>&& a, mat<double> const& b, double k1, double k2) {
+    assert(a.m_cols == b.m_cols && a.m_rows == b.m_rows);
+    
+    int sz = a.rows() * a.cols();
+    const int alignedN = sz - sz % 4;
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&a.data()[i]);
+        const __m256d b_vec = _mm256_loadu_pd(&b.data()[i]);
+
+        const __m256d k1_vec = _mm256_set1_pd(k1);
+        const __m256d k2_vec = _mm256_set1_pd(k2);
+
+        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec); 
+        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec); 
+        const __m256d result = _mm256_add_pd(k1_a, k2_b);  
+
+        _mm256_storeu_pd(&a.data()[i], result);
+    }
+    for (int i = alignedN; i < sz; ++i) 
+        a.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
+    return std::move(a);
+}
+
 
 template<class Type_>
 mat<Type_> add_matrices_copy(mat<Type_> const& a, mat<Type_> const& b, double k1 = 1, double k2 = 1) {
@@ -295,10 +374,41 @@ mat<Type_> add_matrices_copy(mat<Type_> const& a, mat<Type_> const& b, double k1
     mat<Type_> out;
     out.reshape(a.rows(), a.cols());
 
-    for (int c = 0; c < a.rows() * a.cols(); ++c)
-        out.data()[c] = k1 * a.data()[c] + k2 * b.data()[c];
+    int sz = a.rows() * a.cols();
+    for (int i = 0; i < sz; ++i)
+        out.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
     return out;
 }
+
+
+template<>
+mat<double> add_matrices_copy(mat<double> const& a, mat<double> const& b, double k1, double k2) {
+    assert(a.cols() == b.cols() && a.rows() == b.rows());
+    mat<double> out;
+    out.reshape(a.rows(), a.cols());
+
+    int sz = a.rows() * a.cols();
+    const int alignedN = sz - sz % 4;
+    for (int i = 0; i < alignedN; i += 4) {
+        const __m256d a_vec = _mm256_loadu_pd(&a.data()[i]);
+        const __m256d b_vec = _mm256_loadu_pd(&b.data()[i]);
+
+        const __m256d k1_vec = _mm256_set1_pd(k1);
+        const __m256d k2_vec = _mm256_set1_pd(k2);
+
+        const __m256d k1_a = _mm256_mul_pd(k1_vec, a_vec);
+        const __m256d k2_b = _mm256_mul_pd(k2_vec, b_vec);
+        const __m256d result = _mm256_add_pd(k1_a, k2_b);
+
+        _mm256_storeu_pd(&out.data()[i], result);
+    }
+    for (int i = alignedN; i < sz; ++i)
+        out.data()[i] = k1 * a.data()[i] + k2 * b.data()[i];
+
+    return out;
+}
+
 
 /////////////////////////////////////////////////////////////
 
