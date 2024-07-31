@@ -123,7 +123,8 @@ struct mat {
     }
 
     void fill(Type_ def = Type_()) {
-        for (int i = 0; i < m_rows * m_cols; ++i)
+        int sz = m_rows * m_cols;
+        for (int i = 0; i < sz; ++i)
             m_data[i] = def;
     }
 
@@ -190,7 +191,7 @@ void _matmul_1(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out) {
     int n_rows = b.rows();
     int n_cols = b.cols();
     assert(m_cols == n_rows);
-
+    out.fill();
     for (int r = 0; r < m_rows; ++r)
         for (int c = 0; c < n_cols; ++c)
             for (int r1 = 0; r1 < m_cols; ++r1)
@@ -206,6 +207,7 @@ void _matmul_2(mat<Type_> const& a, mat<Type_> const& b, mat<Type_>& out) {
     int n_cols = b.cols();
     assert(m_cols == n_rows);
 
+    out.fill();
     for (int r1 = 0; r1 < m_cols; ++r1) {
         for (int r = 0; r < m_rows; ++r) {
             auto tmp = a.data()[r * m_cols + r1];
